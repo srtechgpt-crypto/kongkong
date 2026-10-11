@@ -84,6 +84,10 @@ p{margin:0;font-size:20px;line-height:1.4}
 .slot .sub{font-size:14px;color:var(--muted)}
 .stage .best{font-size:12px;color:var(--muted);line-height:1}
 .diff .btn.small{padding:7px 10px}
+.worlds{display:flex;gap:8px;justify-content:center;margin:2px 0 4px}
+.worlds .btn{background:#fff;padding:5px 14px;font-size:16px}
+.worlds .btn[aria-pressed="true"]{background:var(--sun)}
+.worlds .btn:disabled{background:var(--lock);color:var(--muted);border-color:var(--muted);box-shadow:0 4px 0 var(--muted)}
 .bigstars .off{color:var(--lock)}
 
 #rotate{position:fixed;inset:0;z-index:20;background:var(--night);color:var(--cream);display:flex;flex-direction:column;
@@ -132,9 +136,10 @@ p{margin:0;font-size:20px;line-height:1.4}
       <button class="btn small" id="bBackTitle">처음 화면</button>
       <h2>어디로 갈까요?</h2>
       <div class="diff" role="group" aria-label="난이도">
-        <button class="btn small" id="dEasy" data-d="easy">쉬워요</button><button class="btn small" id="dNormal" data-d="normal">보통</button><button class="btn small" id="dHard" data-d="hard">어려워요</button><button class="btn small" id="dChallenge" data-d="challenge">도전</button>
+        <button class="btn small" id="dEasy" data-d="easy">쉬워요</button><button class="btn small" id="dNormal" data-d="normal">보통</button><button class="btn small" id="dHard" data-d="hard">어려워요</button><button class="btn small" id="dChallenge" data-d="challenge">도전</button><button class="btn small" id="dAdult" data-d="adult">어른</button>
       </div>
     </div>
+    <div class="worlds" id="worldTabs"></div>
     <p class="hint" id="diffInfo"></p>
     <div class="stages" id="stageList"></div>
   </div>
@@ -225,7 +230,7 @@ function buildLevel(name, theme, fn, opt, tier) {
     check(x, r = 9) { ents.push({t:'check', x, r}); },
     goal(x, r = 9) { ents.push({t:'goal', x, r}); },
     sign(x, msg, r = 9) { ents.push({t:'sign', x, r, msg}); },
-    cloud(x, r, range, len = 3, rev = false) { ents.push({t:'cloud', x, r, range, len, rev}); },
+    cloud(x, r, range, len = 3, rev = false, spd = 50) { ents.push({t:'cloud', x, r, range, len, rev, spd}); },
     lift(x, r, range, len = 3) { ents.push({t:'lift', x, r, range, len}); },
     // 중간 보스 방: x0~x0+24 안에서 싸우고, x0+25 칸의 문(W)은 보스를 이기면 열려요.
     boss(x0) {
@@ -307,7 +312,7 @@ function makeSegments(a, tier) {
       a.ground(o, o + 2); a.cloud(o + 3, 8, 3, 3);
       if (tier === 0) { a.ground(o + 10, o + 13); return o + 14; }
       // 두 구름은 반대로 움직여서, 첫 구름이 오른쪽 끝일 때 두 번째 구름이 바로 옆에 와요
-      a.cloud(o + 9, 8, 3, 3, true); if (tier === 2) a.bee(o + 9, 5);
+      a.cloud(o + 9, 8, 3, 3, true); if (tier >= 2) a.bee(o + 9, 5);
       a.candy(o + 8, o + 10, 5); a.ground(o + 16, o + 19); return o + 20;
     },
     liftBee(o) {
@@ -331,8 +336,30 @@ function makeSegments(a, tier) {
       a.ground(o, o + 17); a.spring(o + 2); a.row(o + 4, o + 13, 3, '-'); a.candy(o + 4, o + 12, 2); a.tile(o + 9, 0, '!'); a.snail(o + 11);
       return o + 18;
     },
+    // ----- 어른(tier 3) 전용 조각: 직접 넘는 구멍은 3칸 이하, 넓은 구멍은 움직이는 구름으로 나눠 건너요 -----
+    adultGapChain(o) {
+      a.ground(o, o + 3); a.ground(o + 7, o + 9); a.ground(o + 13, o + 15); a.ground(o + 19, o + 24);
+      a.snail(o + 23); a.candy(o + 4, o + 6, 7); a.candy(o + 16, o + 18, 7); return o + 25;
+    },
+    adultWideGap(o) {
+      // 구멍 8칸(o+4~o+11). 구름이 오른쪽 끝(o+7~o+9)에 오면 건너편까지 2칸
+      a.ground(o, o + 3); a.cloud(o + 4, 8, 3, 3); a.candy(o + 5, o + 10, 6);
+      a.ground(o + 12, o + 17); a.snail(o + 16); return o + 18;
+    },
+    adultSpikeChain(o) {
+      a.ground(o, o + 19); a.spikes(o + 3, o + 4); a.spikes(o + 9, o + 10); a.spikes(o + 15, o + 16);
+      a.bee(o + 12, 5); a.candy(o + 9, o + 10, 7); return o + 20;
+    },
+    adultMovingStep(o) {
+      // 빠른 구름 두 개(반대로 움직여서 첫 구름이 오른쪽 끝일 때 두 번째가 바로 옆)
+      a.ground(o, o + 2); a.cloud(o + 3, 8, 3, 3, false, 65); a.cloud(o + 9, 8, 3, 3, true, 65); a.bee(o + 9, 5);
+      a.candy(o + 8, o + 10, 5); a.ground(o + 16, o + 19); return o + 20;
+    },
   };
+  // 어른은 도전 조각을 어른 조각으로 바꾸고, 쉼터(rest) 뒤에 넓은 구멍을 하나씩 더해요
+  const ADULT = {gapChain: ['adultGapChain'], spikeHop: ['adultSpikeChain'], cloudHop: ['adultMovingStep'], rest: ['rest', 'adultWideGap']};
   const run = (x, list) => {
+    if (tier >= 3) list = list.flatMap(it => (!Array.isArray(it) && ADULT[it]) || [it]);
     for (const it of list) { const [k, ...args] = Array.isArray(it) ? it : [it]; run.segs.push({k, x}); x = S[k](x, ...args); }
     return x;
   };
@@ -497,9 +524,10 @@ const DIFFS = {
   normal:    {label:'보통', hearts:3, enemy:1.6, tier:1, dens:7, restart:false, bypass:3, info:'하트 3개. 적이 더 빠르고 어려운 길이 나와요'},
   hard:      {label:'어려워요', hearts:3, enemy:1.75, tier:2, dens:8, restart:false, bypass:3, info:'하트 3개. 아주 빠르고 어려운 길이 많아요'},
   challenge: {label:'도전', hearts:2, enemy:1.75, tier:2, dens:8, restart:true, bypass:0, info:'하트 2개! 다 잃으면 처음부터. 보스를 꼭 이겨야 해요'},
+  adult:     {label:'어른', hearts:2, enemy:2.1, tier:3, dens:11, restart:false, bypass:0, info:'하트 2개. 길이 가장 험하고 적이 더 빠르고 많아요. 보스를 꼭 이겨야 해요'},
   old:       {label:'옛 어려워요', hearts:3, enemy:1.45, tier:0, dens:0, restart:true, bypass:3, info:'시험용(v2 어려워요)', hidden:true},
 };
-const DKEYS = ['easy', 'normal', 'hard', 'challenge'];
+const DKEYS = ['easy', 'normal', 'hard', 'challenge', 'adult'];
 const SLOT_INFO = [
   {name:'초록 콩콩이', body:'#6cc24a', dark:'#2f6e22', belly:'#a6e38a'},
   {name:'분홍 콩콩이', body:'#ff8fb1', dark:'#b8466e', belly:'#ffd0de'},
@@ -507,42 +535,196 @@ const SLOT_INFO = [
 ];
 
 // ---------- 저장 ----------
-const KEY = 'kongkong-adventure-v3', OLD_KEY = 'kongkong-adventure-v1';
-const newRec = () => ({stars: LEVELS.map(() => 0), crown: LEVELS.map(() => false), best: LEVELS.map(() => 0)});
-const newSlot = () => ({unlocked: 1, diff: 'easy', rec: Object.fromEntries(DKEYS.map(k => [k, newRec()]))});
-let store = {slot: 0, sound: true, slots: [newSlot(), newSlot(), newSlot()]};
-function fixRec(r) {
-  const n = newRec(); if (!r) return n;
-  return {stars: n.stars.map((_, i) => Math.min(3, Math.max(0, (r.stars || [])[i] | 0))),
-          crown: n.crown.map((_, i) => !!(r.crown || [])[i]),
-          best: n.best.map((_, i) => Math.max(0, +((r.best || [])[i]) || 0))};
-}
-try {
-  const s = JSON.parse(localStorage.getItem(KEY));
-  if (s && Array.isArray(s.slots)) {
-    store.slot = Math.min(2, Math.max(0, s.slot | 0)); store.sound = s.sound !== false;
-    store.slots = [0, 1, 2].map(i => {
-      const o = s.slots[i] || {};
-      return {unlocked: Math.max(1, Math.min(LEVELS.length, o.unlocked | 0)), diff: DKEYS.includes(o.diff) ? o.diff : 'easy',
-              rec: Object.fromEntries(DKEYS.map(k => [k, fixRec(o.rec && o.rec[k])]))};
+// v4 저장(시험도구/migrate_v4.js와 같은 코드). 옛 v3·v1 기록은 지우지 않고 새 키로 옮겨요.
+// NLEV는 계획한 전체 단계 수(월드 2개=20)로 고정 — 아직 안 만든 단계 칸도 미리 만들어 둬요.
+const KEY = 'kongkong-adventure-v4', NLEV = 20;
+// 브라우저에 이 함수 전체를 붙여 넣어 사용할 수 있어요.
+function loadStoreV4(ls, NLEV, DKEYS) {
+  const KEY = 'kongkong-adventure-v4';
+  const V3_KEY = 'kongkong-adventure-v3';
+  const V1_KEY = 'kongkong-adventure-v1';
+  const OLD_KEYS = ['easy', 'normal', 'hard', 'challenge'];
+  const BAD_MSG = '기록을 읽지 못해서 새로 시작해요';
+  const BROKEN_KEY = 'kongkong-adventure-broken';
+
+  function newRec() {
+    return {
+      stars: Array(NLEV).fill(0),
+      crown: Array(NLEV).fill(false),
+      best: Array(NLEV).fill(0)
+    };
+  }
+
+  function newStore() {
+    return {
+      schema: 4,
+      slot: 0,
+      sound: true,
+      slots: Array.from({length: 3}, function () {
+        return {
+          unlocked: 1,
+          diff: 'easy',
+          rec: Object.fromEntries(DKEYS.map(function (key) { return [key, newRec()]; }))
+        };
+      })
+    };
+  }
+
+  function integer(value, min, max) {
+    const number = Number(value);
+    return Math.min(max, Math.max(min, Number.isFinite(number) ? Math.trunc(number) : min));
+  }
+
+  function positiveTime(value) {
+    return typeof value === 'number' && Number.isFinite(value) && value > 0;
+  }
+
+  function fixRec(record, limit) {
+    const result = newRec();
+    const r = record || {};
+    const stars = Array.isArray(r.stars) ? r.stars : [];
+    const crown = Array.isArray(r.crown) ? r.crown : [];
+    const best = Array.isArray(r.best) ? r.best : [];
+    for (let i = 0; i < Math.min(NLEV, limit); i++) {
+      result.stars[i] = integer(stars[i], 0, 3);
+      result.crown[i] = crown[i] === true;
+      result.best[i] = positiveTime(best[i]) ? best[i] : 0;
+    }
+    return result;
+  }
+
+  function hasSlots(value) {
+    return value && Array.isArray(value.slots) && value.slots.length === 3;
+  }
+
+  function completedTen(slot) {
+    return OLD_KEYS.some(function (key) {
+      const r = slot.rec && slot.rec[key];
+      if (!r) return false;
+      const star = Array.isArray(r.stars) ? r.stars[9] : undefined;
+      const crown = Array.isArray(r.crown) ? r.crown[9] : undefined;
+      const best = Array.isArray(r.best) ? r.best[9] : undefined;
+      return (Number.isInteger(star) && star >= 1 && star <= 3) ||
+        crown === true || positiveTime(best);
     });
-  } else {
-    // 예전(v2) 기록은 초록 칸으로 옮겨요
-    const o = JSON.parse(localStorage.getItem(OLD_KEY));
-    if (o && Array.isArray(o.stars)) {
-      store.sound = o.sound !== false;
-      store.slots[0].unlocked = Math.max(1, Math.min(LEVELS.length, o.unlocked | 0));
-      store.slots[0].rec.easy.stars = LEVELS.map((_, i) => Math.min(3, o.stars[i] | 0));
+  }
+
+  function normalize(value, fromV3) {
+    const result = newStore();
+    result.slot = integer(value.slot, 0, 2);
+    result.sound = value.sound !== false;
+    result.slots.forEach(function (slot, i) {
+      const old = value.slots[i] || {};
+      slot.unlocked = integer(old.unlocked, 1, fromV3 ? Math.min(10, NLEV) : NLEV);
+      if (fromV3 && completedTen(old)) {
+        slot.unlocked = Math.max(slot.unlocked, Math.min(11, NLEV));
+      }
+      slot.diff = DKEYS.includes(old.diff) && (!fromV3 || OLD_KEYS.includes(old.diff))
+        ? old.diff : 'easy';
+      DKEYS.forEach(function (key) {
+        if (!fromV3 || OLD_KEYS.includes(key)) {
+          slot.rec[key] = fixRec(old.rec && old.rec[key], fromV3 ? 10 : NLEV);
+        }
+      });
+    });
+    return result;
+  }
+
+  // 깨진 기록: 옛 키는 그대로 두고 새 v4로 시작해요(매번 저장 못 하는 상태에 갇히지 않게).
+  // v4가 깨졌으면 원본 문자열을 따로 보관한 뒤에만 덮어써요. 보관이 안 되면 이번엔 저장하지 않아요.
+  function unreadable(raw, isV4) {
+    if (isV4) {
+      try {
+        ls.setItem(BROKEN_KEY, raw);
+        if (ls.getItem(BROKEN_KEY) !== raw) throw new Error('backup');
+      } catch (e) {
+        return {store: newStore(), canSave: false, msg: '기록을 읽지 못했어요. 이번엔 저장하지 않아요'};
+      }
+    }
+    const r = migrate(newStore());
+    return {store: r.store, canSave: r.canSave, msg: BAD_MSG};
+  }
+
+  function migrate(store) {
+    // 옛 키는 그대로 두고, 새 키를 쓴 뒤 문자열까지 확인해요.
+    try {
+      const json = JSON.stringify(store);
+      ls.setItem(KEY, json);
+      return {store: store, canSave: ls.getItem(KEY) === json, msg: ''};
+    } catch (e) {
+      return {store: store, canSave: false, msg: ''};
     }
   }
-} catch (e) {}
-function save() { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} }
+
+  let json;
+  try {
+    json = ls.getItem(KEY);
+  } catch (e) {
+    return {store: newStore(), canSave: false, msg: ''};
+  }
+  if (json !== null && json !== undefined) {
+    try {
+      const value = JSON.parse(json);
+      if (!hasSlots(value) || value.schema !== 4) return unreadable(json, true);
+      return {store: normalize(value, false), canSave: true, msg: ''};
+    } catch (e) {
+      return unreadable(json, true);
+    }
+  }
+
+  try {
+    json = ls.getItem(V3_KEY);
+  } catch (e) {
+    return {store: newStore(), canSave: false, msg: ''};
+  }
+  if (json !== null && json !== undefined) {
+    let store;
+    try {
+      const value = JSON.parse(json);
+      if (!hasSlots(value)) return unreadable(json, false);
+      store = normalize(value, true);
+    } catch (e) {
+      return unreadable(json, false);
+    }
+    return migrate(store);
+  }
+
+  try {
+    json = ls.getItem(V1_KEY);
+  } catch (e) {
+    return {store: newStore(), canSave: false, msg: ''};
+  }
+  if (json !== null && json !== undefined) {
+    let store;
+    try {
+      const value = JSON.parse(json);
+      if (!value || !Array.isArray(value.stars)) return unreadable(json, false);
+      store = newStore();
+      store.sound = value.sound !== false;
+      store.slots[0].unlocked = integer(value.unlocked, 1, Math.min(10, NLEV));
+      store.slots[0].rec.easy = fixRec({stars: value.stars}, 10);
+    } catch (e) {
+      return unreadable(json, false);
+    }
+    return migrate(store);
+  }
+
+  return {store: newStore(), canSave: true, msg: ''};
+}
+const newRec = () => ({stars: Array(NLEV).fill(0), crown: Array(NLEV).fill(false), best: Array(NLEV).fill(0)});
+let store, canSave = false, loadMsg = '';
+try { ({store, canSave, msg: loadMsg} = loadStoreV4(localStorage, NLEV, DKEYS)); }
+catch (e) { ({store, canSave, msg: loadMsg} = loadStoreV4({getItem() { throw e; }, setItem() { throw e; }}, NLEV, DKEYS)); }
+function save() { if (!canSave) return; try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} }
 const SL = () => store.slots[store.slot];
 const D = () => DIFFS[SL().diff] || DIFFS.easy;
 const R = () => SL().rec[SL().diff] || (SL().rec[SL().diff] = newRec());
 const HC = () => SLOT_INFO[store.slot];
+// 월드 안 진행도: 월드1은 0~9, 월드2는 4~13 (새 월드 1단계는 앞 월드 5단계 수준에서 시작)
+const WORLD_LEN = 10;
+const WI = (i = idx) => i < WORLD_LEN ? i : (i % WORLD_LEN) + 4;
 // 적 속도: 난이도 × 단계(한 단계마다 3%씩 빨라져요)
-const EF = () => D().enemy * (1 + idx * 0.03);
+const EF = () => D().enemy * (1 + WI() * 0.03);
 
 // ---------- 소리 ----------
 let ac = null;
@@ -652,7 +834,7 @@ function spawn(d) {
     case 'check': return {t:'check', x:bx + 8, y:0, w:16, h:by + T, on:false, col:d.x, row:d.r};
     case 'goal': return {t:'goal', x:bx + 10, y:0, w:12, h:by + T, col:d.x, row:d.r};
     case 'sign': return {t:'sign', x:bx, y:by, w:T, h:T, msg:d.msg};
-    case 'cloud': return {t:'cloud', axis:'x', x:d.rev ? bx + d.range * T : bx, y:by, w:d.len * T, h:14, x0:bx, x1:bx + d.range * T, vx:d.rev ? -50 : 50, dx:0, dy:0};
+    case 'cloud': return {t:'cloud', axis:'x', x:d.rev ? bx + d.range * T : bx, y:by, w:d.len * T, h:14, x0:bx, x1:bx + d.range * T, vx:(d.rev ? -1 : 1) * (d.spd || 50), dx:0, dy:0};
     case 'lift': return {t:'cloud', axis:'y', x:bx, y:by, w:d.len * T, h:14, y0:by - d.range * T, y1:by, vy:-45, dx:0, dy:0};
     case 'frog': return {t:'frog', x:bx + 3, y:by + T - 22, w:26, h:22, vx:0, vy:0, ground:false, wait:1 + (d.x % 3) * 0.4, face:-1};
     case 'spike': return {t:'spike', x:bx, y:by + 16, w:T, h:16};
@@ -669,16 +851,16 @@ function spawn(d) {
 
 // 보스 세기: 쉬워요 3 / 보통 3→4 / 어려워요 4→5. 밟을 틈 1.2 / 1.0 / 0.8초. 단계·난이도가 오르면 조금씩 빨라져요.
 function bossCfg() {
-  const t = D().tier, late = idx >= 5;
-  return {hp: t === 0 ? 3 : t === 1 ? (late ? 4 : 3) : (late ? 5 : 4), win: [1.2, 1.0, 0.8][t], bf: 1 + idx * 0.04 + t * 0.08};
+  const t = D().tier, w = WI(), late = w >= 5;
+  return {hp: t === 0 ? 3 : t === 1 ? (late ? 4 : 3) : (late ? 5 : 4), win: [1.2, 1.0, 0.8, 0.75][t], bf: 1 + w * 0.04 + t * 0.08};
 }
 
 // 악당 더 놓기: 100칸마다 (난이도 기본 + 단계×0.4)마리가 되도록, 다른 적·가시와 7칸 이상 떨어진 평평한 땅에.
 function addExtraEnemies(L) {
-  const kinds = ['snail'].concat(idx >= 1 ? ['bee'] : [], idx >= 5 ? ['frog'] : []);
+  const w = WI(), kinds = ['snail'].concat(w >= 1 ? ['bee'] : [], w >= 5 ? ['frog'] : []);
   const foe = e => e.t === 'snail' || e.t === 'bee' || e.t === 'frog';
   const have = L.ents.filter(foe).length;
-  const want = Math.round((D().dens + idx * 0.4) * L.w / 100) - have;
+  const want = Math.round((D().dens + w * 0.4) * L.w / 100) - have;
   if (want <= 0) return [];
   const taken = L.ents.filter(e => foe(e) || e.t === 'spike').map(e => e.x);
   const far = x => taken.every(t => Math.abs(t - x) >= 7);
@@ -942,8 +1124,8 @@ function updateBoss(b, dt) {
     if (b.st === 'start') { b.st = 'walk'; b.face = dir; b.tm = 0; }
     if (b.st === 'walk') {
       b.vx = b.face * sp;
-      if (b.tm > 3 && idx < 4) { b.face = dir; b.tm = 0; }
-      if (idx >= 4 && b.tm > 3.5) { b.st = 'shake'; b.tm = 0; }
+      if (b.tm > 3 && WI() < 4) { b.face = dir; b.tm = 0; }
+      if (WI() >= 4 && b.tm > 3.5) { b.st = 'shake'; b.tm = 0; }
     } else if (b.st === 'shake') { b.vx = 0; if (b.tm > 0.8) { b.st = 'dash'; b.face = dir; b.tm = 0; } }
     else if (b.st === 'dash') { b.vx = b.face * sp * 3; if (b.tm > 1.4) { b.st = 'tired'; b.tm = 0; } }
     else if (b.st === 'tired') { b.vx = 0; if (b.tm > b.win) { b.st = 'walk'; b.face = dir; b.tm = 0; } }
@@ -952,9 +1134,9 @@ function updateBoss(b, dt) {
     const r = moveBox(b, dt); b.ground = r.ground;
     if (b.x <= b.ax0 + 1 && b.face < 0) { b.face = 1; if (b.st === 'dash') { b.st = 'tired'; b.tm = 0; } }
     if (b.x + b.w >= b.ax1 - 1 && b.face > 0) { b.face = -1; if (b.st === 'dash') { b.st = 'tired'; b.tm = 0; } }
-    if (idx >= 7 && b.minT > 6) { b.minT = 0; addMinion(b, 'snail'); }
+    if (WI() >= 7 && b.minT > 6) { b.minT = 0; addMinion(b, 'snail'); }
   } else if (b.kind === 'bee') {
-    const top = 3 * T, hoverT = idx >= 6 ? 1.6 : 2.6;
+    const top = 3 * T, hoverT = WI() >= 6 ? 1.6 : 2.6;
     if (b.st === 'start') { b.st = 'hover'; b.tm = 0; }
     if (b.st === 'hover') {
       b.y += (top - b.y) * Math.min(1, dt * 3);
@@ -964,18 +1146,18 @@ function updateBoss(b, dt) {
     else if (b.st === 'dive') { b.y += 320 * b.bf * dt; if (b.y + b.h >= gy) { b.y = gy - b.h; b.st = 'rest'; b.tm = 0; sfx.bonk(); } }
     else if (b.st === 'rest') { if (b.tm > b.win + 0.3) { b.st = 'rise'; b.tm = 0; } }
     else if (b.st === 'rise') { b.y -= 200 * b.bf * dt; if (b.y <= top) { b.y = top; b.st = 'hover'; b.tm = 0; } }
-    if (idx >= 8 && b.minT > 7) { b.minT = 0; addMinion(b, 'bee'); }
+    if (WI() >= 8 && b.minT > 7) { b.minT = 0; addMinion(b, 'bee'); }
   } else {
     if (b.st === 'start') { b.st = 'wait'; b.tm = 0; }
     b.vy = Math.min(b.vy + GRAV * dt, MAXFALL);
     const wasAir = !b.ground, r = moveBox(b, dt); b.ground = r.ground;
-    if (b.st === 'wait') { b.vx = 0; if (b.tm > Math.max(0.5, 1.3 - idx * 0.05)) { b.st = 'crouch'; b.tm = 0; b.face = dir; } }
+    if (b.st === 'wait') { b.vx = 0; if (b.tm > Math.max(0.5, 1.3 - WI() * 0.05)) { b.st = 'crouch'; b.tm = 0; b.face = dir; } }
     else if (b.st === 'crouch') { if (b.tm > 0.6) { b.hops = 0; frogJump(b, pc); } }
     else if (b.st === 'jump') {
       if (b.ground && wasAir) {
         b.vx = 0;
-        if (idx >= 8) for (const s of [-1, 1]) ents.push({t:'wave', x:b.x + b.w / 2 - 10, y:gy - 14, w:20, h:14, vx:s * 170, x0:b.ax0, x1:b.ax1});
-        if (idx >= 5 && b.hops < 2) frogJump(b, pc); else { b.st = 'land'; b.tm = 0; }
+        if (WI() >= 8) for (const s of [-1, 1]) ents.push({t:'wave', x:b.x + b.w / 2 - 10, y:gy - 14, w:20, h:14, vx:s * 170, x0:b.ax0, x1:b.ax1});
+        if (WI() >= 5 && b.hops < 2) frogJump(b, pc); else { b.st = 'land'; b.tm = 0; }
       }
     } else if (b.st === 'land') { b.vx = 0; if (b.tm > b.win) { b.st = 'wait'; b.tm = 0; } }
   }
@@ -1645,7 +1827,7 @@ function buildSlots() {
     let st = 0, cr = 0; for (const k of DKEYS) { st += sl.rec[k].stars.reduce((a, b) => a + b, 0); cr += sl.rec[k].crown.filter(Boolean).length; }
     const b = document.createElement('button');
     b.className = 'btn slot'; b.id = 'slot' + (i + 1);
-    b.innerHTML = `<span class="dot" style="background:${info.body}"></span><span>${info.name}</span><span class="sub">${sl.unlocked}단계까지 · ★${st} · 왕관 ${cr}</span>`;
+    b.innerHTML = `<span class="dot" style="background:${info.body}"></span><span>${info.name}</span><span class="sub">${Math.min(sl.unlocked, LEVELS.length)}단계까지 · ★${st} · 왕관 ${cr}</span>`;
     b.addEventListener('click', () => { audio(); store.slot = i; save(); startGame(); });
     list.appendChild(b);
   });
@@ -1658,11 +1840,31 @@ function startGame() {
   goSelect();
 }
 
+// 월드: 단계 10개씩. 단계 고르기 화면에서 월드 탭으로 바꿔 봐요
+const WORLDS = [{name: '새싹 마을'}, {name: '반짝 바다'}];
+let selWorld = 0;
+const worldCount = () => Math.ceil(LEVELS.length / WORLD_LEN);
+function buildWorldTabs() {
+  const box = $('#worldTabs'); box.textContent = '';
+  const n = worldCount(); box.hidden = n < 2;
+  for (let w = 0; w < n; w++) {
+    const b = document.createElement('button');
+    const open = SL().unlocked > w * WORLD_LEN;
+    b.className = 'btn small'; b.id = 'world' + (w + 1); b.disabled = !open;
+    b.textContent = `월드${w + 1} ${WORLDS[w] ? WORLDS[w].name : ''}` + (open ? '' : ' (잠김)');
+    b.setAttribute('aria-pressed', String(w === selWorld));
+    b.addEventListener('click', () => { audio(); selWorld = w; buildSelect(); });
+    box.appendChild(b);
+  }
+}
 function buildSelect() {
   setDiff(SL().diff);
+  selWorld = Math.min(selWorld, worldCount() - 1);
+  buildWorldTabs();
   const list = $('#stageList'); list.textContent = '';
   const rec = R();
   LEVELS.forEach((L, i) => {
+    if (Math.floor(i / WORLD_LEN) !== selWorld) return;
     const b = document.createElement('button');
     b.className = 'btn stage'; b.id = 'stage' + (i + 1);
     const locked = i + 1 > SL().unlocked;
@@ -1678,6 +1880,7 @@ function goSelect() {
   mode = 'select'; releaseTouches();
   $('#hud').hidden = true; $('#controls').hidden = true;
   if (!lv) loadLevel(0);
+  selWorld = Math.floor(idx / WORLD_LEN);
   buildSelect(); showScreen('#scSelect');
 }
 function pauseGame() {
@@ -1739,6 +1942,7 @@ function frame(t) {
   render(); updateHUD();
 }
 soundLabel(); loadLevel(0); buildSlots(); resize();
+if (loadMsg) toast(loadMsg, 4);
 requestAnimationFrame(frame);
 window.__kk = {LEVELS, ROOM, DIFFS, startLevel, keys, jump: pressJump, throwBoom, setDiff, goSelect, store, save, SL, D,
   step(n) { for (let i = 0; i < n; i++) update(STEP); },
