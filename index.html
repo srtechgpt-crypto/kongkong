@@ -136,7 +136,7 @@ p{margin:0;font-size:20px;line-height:1.4}
       <button class="btn small" id="bBackTitle">처음 화면</button>
       <h2>어디로 갈까요?</h2>
       <div class="diff" role="group" aria-label="난이도">
-        <button class="btn small" id="dEasy" data-d="easy">쉬워요</button><button class="btn small" id="dNormal" data-d="normal">보통</button><button class="btn small" id="dHard" data-d="hard">어려워요</button><button class="btn small" id="dChallenge" data-d="challenge">도전</button><button class="btn small" id="dAdult" data-d="adult">어른</button>
+        <button class="btn small" id="dEasy" data-d="easy">쉬워요</button><button class="btn small" id="dNormal" data-d="normal">보통</button><button class="btn small" id="dHard" data-d="hard">어려워요</button><button class="btn small" id="dChallenge" data-d="challenge">도전</button><button class="btn small" id="dAdult" data-d="adult">어른</button><button class="btn small" id="dUltimate" data-d="ultimate">얼티메이트</button>
       </div>
     </div>
     <div class="worlds" id="worldTabs"></div>
@@ -203,6 +203,10 @@ const THEMES = {
     dirt:'#e8c98a', dirt2:'#d4b06a', grass:'#f7e4b0', grass2:'#fff6dc', brick:'#e9a86a', brick2:'#b97a42', ledge:'#ffffff', ledge2:'#cfe6f7'},
   sea:    {sky:['#1d6fa5','#7fd0ee'], bubbles:true, hills:[['#2b7fae',0.2,280,50,200],['#1f6a93',0.4,300,40,170]],
     dirt:'#c9a86a', dirt2:'#a8874c', grass:'#ff8fa3', grass2:'#ffc8d2', brick:'#7fb0c9', brick2:'#4f86a3', ledge:'#ffe3ef', ledge2:'#f2a7c0'},
+  seacave:{sky:['#102a4c','#245a86'], cave:true, bubbles:true, deco:'#183a62', crystal:'#9be7ff', hills:[['#173c66',0.3,300,40,200]],
+    dirt:'#4f6f8f', dirt2:'#3d5a78', grass:'#7fe0d0', grass2:'#c2fff4', brick:'#6a8fb0', brick2:'#46698a', ledge:'#bff3ff', ledge2:'#6fbfd9'},
+  deep:   {sky:['#0e2448','#2a6aa0'], bubbles:true, castle:true, deco:'#1d4a7c', hills:[['#173f6c',0.3,300,40,200]],
+    dirt:'#6a5a8a', dirt2:'#54466f', grass:'#ff9fc0', grass2:'#ffd3e2', brick:'#8a74b8', brick2:'#5f4d8a', ledge:'#ffe3ef', ledge2:'#f2a7c0'},
   secret: {sky:['#3a2470','#8a5cc8'], stars:true, hills:[],
     dirt:'#6a4c9c', dirt2:'#563c84', grass:'#ffd23f', grass2:'#fff2a8', brick:'#b388ff', brick2:'#7a52c8', ledge:'#ffe9a8', ledge2:'#d9b24a'},
 };
@@ -243,8 +247,8 @@ function buildLevel(name, theme, fn, opt, tier) {
     shark(x, r, range) { ents.push({t:'shark', x, r, range}); },
     turtle(x, r, range) { ents.push({t:'turtle', x, r, range}); },
     // 중간 보스 방: x0~x0+24 안에서 싸우고, x0+25 칸의 문(W)은 보스를 이기면 열려요.
-    boss(x0) {
-      ents.push({t:'boss', x:x0 + 18, r:9, ax0:x0 + 1, ax1:x0 + 25, gate:x0 + 25, trig:x0 + 8, door:x0 + 5});
+    boss(x0, kind) {
+      ents.push({t:'boss', kind, x:x0 + 18, r:9, ax0:x0 + 1, ax1:x0 + 25, gate:x0 + 25, trig:x0 + 8, door:x0 + 5});
       for (let r = 0; r < ROWS - 2; r++) g[r][x0 + 25] = 'W';
     },
     item(x, r, k) { ents.push({t:'item', x, r, k}); },
@@ -252,7 +256,7 @@ function buildLevel(name, theme, fn, opt, tier) {
     // 마지막 계단과 깃발. 스테이지 길이가 여기서 정해져요.
     finish(x) { api.ground(x, x + 15); api.ground(x, x, 3); api.ground(x + 1, x + 1, 4); api.ground(x + 2, x + 2, 5); api.goal(x + 9); w = x + 16; return w; },
   };
-  api.run = makeSegments(api, tier);
+  api.run = makeSegments(api, tier); api.tier = tier;
   fn(api);
   return {name, theme, w, g: g.map(r => r.slice(0, w)), ents: ents.filter(e => e.x < w), home: !!opt.home, waters,
           spots: enemySpots(g, ents, w).filter(x => waters.every(q => x < q.x0 - 4 || x > q.x1 + 4)), segs: api.run.segs};
@@ -384,8 +388,55 @@ function makeSegments(a, tier) {
     turtleRide(o) {
       return pool(o, 14, x => { a.turtle(x, 6, 11); a.jelly(x + 4, 8); a.jelly(x + 10, 9); if (tier >= 1) a.shark(x + 1, 9, 9); a.candy(x + 2, x + 11, 4); });
     },
+    // ----- 월드2 후반(16~20) 조각 -----
+    // 산호 사이: 물 가운데 산호 줄(8번 줄) 위·아래 두 길. 위엔 해파리, 아래엔 게
+    coralPool(o) {
+      return pool(o, 14, x => {
+        a.row(x + 3, x + 10, 8, 'B'); a.candy(x + 3, x + 10, 7); a.candy(x + 4, x + 9, 10);
+        if (tier >= 1) { a.jelly(x + 7, 6); a.crab(x + 6, 10); }
+        if (tier >= 2) a.crab(x + 9, 10);
+      });
+    },
+    // 거북이 → 가운데 선착장 → 상어 바다를 헤엄쳐 건너기
+    turtleDock(o) {
+      return pool(o, 22, x => {
+        a.turtle(x, 6, 9); a.ground(x + 9, x + 10, 6); a.candy(x + 1, x + 7, 4); a.candy(x + 9, x + 10, 5);
+        a.shark(x + 11, tier >= 1 ? 7 : 9, 8); a.candy(x + 12, x + 20, 6);
+        if (tier >= 2) a.jelly(x + 16, 9);
+      });
+    },
+    // 바위 아래로 잠수: 수면까지 내려온 바위(0~6줄) 밑 물길(7~10줄)을 지나가요
+    caveDive(o) {
+      return pool(o, 12, x => {
+        a.ceil(x + 2, x + 9, 7); a.candy(x + 3, x + 8, 9);
+        if (tier >= 1) a.jelly(x + 5, 8);
+        if (tier >= 2) a.jelly(x + 8, 9);
+      });
+    },
+    // 대왕 문어 방: 마른 바닥 24칸, 이겨야 오른쪽 문이 열려요(비밀의 방은 없어요)
+    octo(o) { a.ground(o, o + 25); a.sign(o + 2, '대왕 문어! 머리가 내려오면 콩 밟아요'); a.boss(o, 'octo'); return o + 26; },
     adultSeaSlalom(o) {
       return pool(o, 18, x => { a.shark(x + 1, 9, 6); a.jelly(x + 9, 7); a.shark(x + 10, 7, 6); a.jelly(x + 16, 9); a.candy(x + 1, x + 16, 6); });
+    },
+    // ----- 얼티메이트(tier 4) 정밀 조각: 운이 아니라 조작 실력. 조각 안엔 움직이는 적을 두지 않아요 -----
+    // 가시 사이 섬: 2칸 섬 → 1칸 섬(꼭 내려야 함, 착지 창 20px) → 2칸 섬 → 마지막 가시 3칸은 달려서
+    ultimateSpikeIslands(o) {
+      a.ground(o, o + 20); a.spikes(o + 3, o + 4); a.spikes(o + 7, o + 8); a.spikes(o + 10, o + 11); a.spikes(o + 14, o + 16);
+      a.candy(o + 9, o + 9, 8); return o + 21;
+    },
+    // 2칸 발판 계단: 내려앉기 직전에 멈춰 서기(공중 제동)
+    ultimateAirSteps(o) {
+      a.ground(o, o + 4); a.row(o + 7, o + 8, 8, '-'); a.row(o + 10, o + 11, 6, '-'); a.ground(o + 13, o + 17, 5); a.ground(o + 18, o + 21);
+      a.candy(o + 10, o + 11, 5); return o + 22;
+    },
+    // 작고 빠른 구름(2칸, 속도 70): 타는 순간과 내리는 순간을 골라요
+    ultimateMovingDock(o) { a.ground(o, o + 4); a.cloud(o + 5, 8, 4, 2, false, 70); a.ground(o + 13, o + 17); return o + 18; },
+    // 물속 바위 3개: 아래 → 위 → 아래로 번갈아 지나가기(통로 높이 모두 64px)
+    ultimateSwimWeave(o) {
+      return pool(o, 20, x => {
+        a.ceil(x + 3, x + 4, 9); a.ground(x + 9, x + 10, 4); a.ceil(x + 15, x + 16, 9);
+        a.candy(x + 3, x + 4, 10); a.candy(x + 9, x + 10, 6); a.candy(x + 15, x + 16, 10);
+      });
     },
     adultMovingStep(o) {
       // 빠른 구름 두 개(반대로 움직여서 첫 구름이 오른쪽 끝일 때 두 번째가 바로 옆)
@@ -395,8 +446,12 @@ function makeSegments(a, tier) {
   };
   // 어른은 도전 조각을 어른 조각으로 바꾸고, 쉼터(rest) 뒤에 넓은 구멍을 하나씩 더해요
   const ADULT = {gapChain: ['adultGapChain'], spikeHop: ['adultSpikeChain'], cloudHop: ['adultMovingStep'], rest: ['rest', 'adultWideGap'], sharkPool: ['adultSeaSlalom']};
+  // 얼티메이트는 어른 표에 정밀 조각 표를 덮어써요(원래 조각 이름 기준으로 한 번만 바꿔요)
+  const ULT = Object.assign({}, ADULT, {gapChain: ['ultimateAirSteps'], spikeHop: ['ultimateSpikeIslands'], cloudHop: ['ultimateMovingDock'],
+    rest: ['rest', 'ultimateSpikeIslands'], ledgeSnail: ['ultimateAirSteps'], jellyPool: ['ultimateSwimWeave'], swim: ['ultimateSwimWeave']});
   const run = (x, list) => {
-    if (tier >= 3) list = list.flatMap(it => (!Array.isArray(it) && ADULT[it]) || [it]);
+    const map = tier >= 4 ? ULT : tier >= 3 ? ADULT : null;
+    if (map) list = list.flatMap(it => (!Array.isArray(it) && map[it]) || [it]);
     for (const it of list) { const [k, ...args] = Array.isArray(it) ? it : [it]; run.segs.push({k, x}); x = S[k](x, ...args); }
     return x;
   };
@@ -405,7 +460,7 @@ function makeSegments(a, tier) {
 }
 
 const LEVELS = [
-  makeLevel('햇살 들판', 'meadow', ({ground, row, tile, candy, star, snail, check, sign, run, finish}) => {
+  makeLevel('햇살 들판', 'meadow', ({ground, row, tile, candy, star, snail, check, sign, run, finish, tier}) => {
     ground(0, 30); sign(10, '◀ ▶ 로 걷고, 초록 버튼으로 점프!'); candy(11, 14, 8);
     row(16, 16, 9, 'B'); candy(16, 16, 7);
     sign(19, '선물 상자를 머리로 콩!');
@@ -422,7 +477,8 @@ const LEVELS = [
     snail(106); snail(110);
     ground(113, 114, 4); star(113, 4);
     candy(118, 124, 8);
-    const end = run(130, ['check', 'snails', 'gap2', 'bricks', 'gap2', 'towers', 'snails', 'gap3', 'bricks', 'check', 'boss', 'rest', 'gapChain', 'snails', 'ledgeSnail', 'rest', 'towers', 'secretPath', 'gapChain', 'bricks', 'snails', ['flat', 4]]);
+    // 얼티메이트는 첫 중간 깃발 바로 뒤에 정밀 조각 두 개(가시 섬·발판 계단)로 시작해요
+    const end = run(130, ['check', ...(tier >= 4 ? ['ultimateSpikeIslands', 'ultimateAirSteps'] : []), 'snails', 'gap2', 'bricks', 'gap2', 'towers', 'snails', 'gap3', 'bricks', 'check', 'boss', 'rest', 'gapChain', 'snails', 'ledgeSnail', 'rest', 'towers', 'secretPath', 'gapChain', 'bricks', 'snails', ['flat', 4]]);
     sign(end + 5, '깃발에 닿으면 성공!');
     finish(end);
   }),
@@ -567,6 +623,33 @@ const LEVELS = [
     finish(run(20, ['sharkPool', 'starLedge', 'crabs', 'check', 'sharkPool', 'jellyPool', 'starSwim', 'rest', 'turtleRide', 'check',
       'sharkPool', 'rest', 'cloudHop', 'starLedge', 'crabs', 'check', 'sharkPool', 'crabs', 'turtleRide', 'sharkPool', ['flat', 4]]));
   }),
+  // ===== 월드2 후반 (16~20): 배운 것 섞기 → 대왕 문어 =====
+  makeLevel('산호 사이로', 'sea', ({ground, candy, sign, run, finish}) => {
+    ground(0, 19); sign(10, '산호 위로 갈까, 아래로 갈까? 길을 골라요'); candy(12, 16, 8);
+    finish(run(20, ['coralPool', 'starLedge', 'crabs', 'check', 'boss', 'coralPool', 'starSwim', 'rest', 'jellyPool', 'check',
+      'coralPool', 'crabs', 'starLedge', 'spikeHop', 'check', 'sharkPool', 'coralPool', 'crabs', ['flat', 4]]));
+  }),
+  makeLevel('거북이 섬 건너기', 'beach', ({ground, candy, sign, run, finish}) => {
+    ground(0, 19); sign(10, '거북이 타고 섬에 내린 다음, 상어를 피해 헤엄쳐요'); candy(12, 16, 8);
+    finish(run(20, ['turtleDock', 'starLedge', 'crabs', 'check', 'sharkPool', 'turtleDock', 'starSwim', 'rest', 'gapChain', 'check',
+      'turtleDock', 'crabs', 'starLedge', 'jellyPool', 'check', 'turtleDock', 'bees', 'crabs', ['flat', 4]]));
+  }),
+  makeLevel('반짝 동굴 바다', 'seacave', ({ground, ceil, candy, sign, run, finish}) => {
+    ground(0, 19); sign(10, '바위 아래로 잠수해서 지나가요'); candy(12, 16, 8);
+    const w = finish(run(20, ['caveDive', 'starLedge', 'spikeHop', 'check', 'boss', 'jellyPool', 'starSwim', 'rest', 'caveDive', 'check',
+      'spikes', 'coralPool', 'starLedge', 'lowGap', 'check', 'caveDive', 'spikeHop', 'crabs', ['flat', 4]]));
+    ceil(0, w - 1, 1);
+  }),
+  makeLevel('문어 성 앞바다', 'beach', ({ground, candy, sign, run, finish}) => {
+    ground(0, 19); sign(10, '문어 성이 보여요! 배운 걸 모두 써 봐요'); candy(12, 16, 8);
+    finish(run(20, ['sharkPool', 'starLedge', 'turtleDock', 'check', 'coralPool', 'crabs', 'starSwim', 'rest', 'jellyPool', 'check',
+      'rest', 'cloudHop', 'caveDive', 'starLedge', 'gapChain', 'check', 'turtleRide', 'sharkPool', 'crabs', ['flat', 4]]));
+  }),
+  makeLevel('대왕 문어의 성', 'deep', ({ground, candy, sign, run, finish}) => {
+    ground(0, 19); sign(10, '마지막 바다! 대왕 문어가 기다려요'); candy(12, 16, 8);
+    finish(run(20, ['coralPool', 'starLedge', 'crabs', 'check', 'caveDive', 'starSwim', 'rest', 'sharkPool', 'check',
+      'turtleDock', 'starLedge', 'spikeHop', 'gapChain', 'check', 'octo', ['flat', 6]]));
+  }),
 ];
 
 // 비밀의 방: 보스를 이기면 들어갈 수 있어요. 아이템 셋 중 하나를 골라요.
@@ -578,8 +661,8 @@ const ROOM = makeLevel('비밀의 방', 'secret', ({ground, ceil, candy, sign, i
 }).get(0);
 // 월드2는 12·14·16·18단계에만 중간 보스(나머지 칸은 쓰지 않아요)
 const BOSS_KIND = ['snail', 'bee', 'snail', 'bee', 'frog', 'frog', 'bee', 'snail', 'bee', 'frog',
-                   'snail', 'snail', 'snail', 'frog', 'snail', 'bee', 'snail', 'snail', 'bee', 'frog'];
-const BOSS_NAME = {snail: '왕달팽이', bee: '여왕벌', frog: '왕개구리'};
+                   'snail', 'snail', 'snail', 'frog', 'snail', 'snail', 'snail', 'frog', 'bee', 'octo'];
+const BOSS_NAME = {snail: '왕달팽이', bee: '여왕벌', frog: '왕개구리', octo: '대왕 문어'};
 const POWERS = {boom: '부메랑', speed: '빨라져요', big: '커져요'};
 
 // ---------- 난이도 ----------
@@ -590,9 +673,13 @@ const DIFFS = {
   hard:      {label:'어려워요', hearts:3, enemy:1.75, tier:2, dens:8, restart:false, bypass:3, info:'하트 3개. 아주 빠르고 어려운 길이 많아요'},
   challenge: {label:'도전', hearts:2, enemy:1.75, tier:2, dens:8, restart:true, bypass:0, info:'하트 2개! 다 잃으면 처음부터. 보스를 꼭 이겨야 해요'},
   adult:     {label:'어른', hearts:2, enemy:2.1, tier:3, dens:11, restart:false, bypass:0, info:'하트 2개. 길이 가장 험하고 적이 더 빠르고 많아요. 보스를 꼭 이겨야 해요'},
+  // 얼티메이트: 운이 아니라 조작 실력. 하트 1개(닿으면 바로 중간 깃발로), 정밀 조각, 자동으로 더하는 적은 땅 위 적만
+  ultimate:  {label:'얼티메이트', hearts:1, enemy:2.1, tier:4, dens:11, restart:false, bypass:0, groundOnly:true,
+              info:'하트 1개! 정확한 점프·발판·헤엄 조작이 필요해요. 중간 깃발 있음, 보스를 꼭 이겨야 해요'},
   old:       {label:'옛 어려워요', hearts:3, enemy:1.45, tier:0, dens:0, restart:true, bypass:3, info:'시험용(v2 어려워요)', hidden:true},
 };
-const DKEYS = ['easy', 'normal', 'hard', 'challenge', 'adult'];
+// 새 난이도는 끝에만 더해요(저장 v4는 키마다 기록을 읽어서, 없는 키만 빈 기록으로 만들어요)
+const DKEYS = ['easy', 'normal', 'hard', 'challenge', 'adult', 'ultimate'];
 const SLOT_INFO = [
   {name:'초록 콩콩이', body:'#6cc24a', dark:'#2f6e22', belly:'#a6e38a'},
   {name:'분홍 콩콩이', body:'#ff8fb1', dark:'#b8466e', belly:'#ffd0de'},
@@ -910,8 +997,8 @@ function spawn(d) {
     // 거북이: 물 위를 오가는 탈것(구름처럼 위에 서요). 양쪽 끝에서 1초 쉬어요
     case 'turtle': return {t:'cloud', turtle:true, axis:'x', x:bx, y:by - 10, w:3 * T, h:14, x0:bx, x1:bx + (d.range - 3) * T, vx:60, dx:0, dy:0, pause:0};
     case 'boss': {
-      const kind = BOSS_KIND[idx], c = bossCfg(), sz = {snail: [60, 44], bee: [56, 44], frog: [58, 46]}[kind];
-      return {t:'boss', kind, name:BOSS_NAME[kind], w:sz[0], h:sz[1], x:bx, sx:bx, y:kind === 'bee' ? 3 * T : 10 * T - sz[1],
+      const kind = d.kind || BOSS_KIND[idx], c = kind === 'octo' ? octoCfg() : bossCfg(), sz = {snail: [60, 44], bee: [56, 44], frog: [58, 46], octo: [76, 56]}[kind];
+      return {t:'boss', kind, name:BOSS_NAME[kind], w:sz[0], h:sz[1], x:bx, sx:bx, y:bossHome(kind, sz[1]), cyc:0, weak:c.weak, warnT:c.warn, inkSp:c.ink,
         hp:c.hp, max:c.hp, win:c.win, bf:c.bf, ax0:d.ax0 * T, ax1:d.ax1 * T, gate:d.gate, trig:d.trig * T, door:d.door,
         active:false, inv:0, st:'idle', tm:0, vx:0, vy:0, face:-1, ground:false, losses:0, minT:0, hops:0, shadow:0};
     }
@@ -922,14 +1009,25 @@ function spawn(d) {
 
 // 보스 세기: 쉬워요 3 / 보통 3→4 / 어려워요 4→5. 밟을 틈 1.2 / 1.0 / 0.8초. 단계·난이도가 오르면 조금씩 빨라져요.
 function bossCfg() {
+  // 밟을 틈(상태가 이어지는 시간): 쉬워요 1.2 … 어른 0.75 / 얼티메이트 0.7. 빠르기는 어른(tier 3) 기준까지만
   const t = D().tier, w = WI(), late = w >= 5;
-  return {hp: t === 0 ? 3 : t === 1 ? (late ? 4 : 3) : (late ? 5 : 4), win: [1.2, 1.0, 0.8, 0.75][t], bf: 1 + w * 0.04 + t * 0.08};
+  return {hp: t === 0 ? 3 : t === 1 ? (late ? 4 : 3) : (late ? 5 : 4), win: [1.2, 1.0, 0.8, 0.75, 0.7][t] || 0.7, bf: 1 + w * 0.04 + Math.min(t, 3) * 0.08};
 }
+// 대왕 문어: 체력 4/5/6, 머리가 내려와 있는 시간(약점) 2.0/1.6/1.3/1.1초, 예고 0.9초, 먹물 속도 100(어른 120)
+// 얼티메이트: 체력 7, 약점 1.0초, 먹물 130, 예고 0.8초(예고는 0.8초보다 짧게 하지 않아요)
+const OCTO = {easy: [4, 2.0, 100], normal: [5, 1.6, 100], hard: [6, 1.3, 100], challenge: [6, 1.3, 100], adult: [6, 1.1, 120], ultimate: [7, 1.0, 130]};
+function octoCfg() {
+  const [hp, weak, ink] = OCTO[SL().diff] || OCTO.easy;
+  return {hp, weak, ink, warn: SL().diff === 'ultimate' ? 0.8 : 0.9, win: weak, bf: 1};
+}
+// 보스가 처음 서 있는 높이: 여왕벌·대왕 문어는 공중, 나머지는 바닥
+const bossHome = (kind, h) => kind === 'bee' ? 3 * T : kind === 'octo' ? 2 * T : 10 * T - h;
 
 // 악당 더 놓기: 100칸마다 (난이도 기본 + 단계×0.4)마리가 되도록, 다른 적·가시와 7칸 이상 떨어진 평평한 땅에.
 function addExtraEnemies(L) {
-  const w = WI(), kinds = idx >= WORLD_LEN ? (idx >= WORLD_LEN + 1 ? ['crab', 'bee'] : ['snail', 'bee'])
+  let w = WI(), kinds = idx >= WORLD_LEN ? (idx >= WORLD_LEN + 1 ? ['crab', 'bee'] : ['snail', 'bee'])
     : ['snail'].concat(w >= 1 ? ['bee'] : [], w >= 5 ? ['frog'] : []);
+  if (D().groundOnly) kinds = [idx >= WORLD_LEN + 1 ? 'crab' : 'snail'];
   const foe = e => ['snail', 'bee', 'frog', 'crab', 'jelly', 'shark'].includes(e.t);
   const have = L.ents.filter(foe).length;
   const want = Math.round((D().dens + w * 0.4) * L.w / 100) - have;
@@ -971,7 +1069,8 @@ function startLevel(i, power = null) {
 
 // ---------- 물리 ----------
 function tileAt(tx, ty) { if (ty < 0 || ty >= ROWS) return '.'; if (tx < 0 || tx >= lv.w) return 'G'; return lv.g[ty][tx]; }
-function solid(tx, ty) { if (ty < 0 || ty >= ROWS) return false; if (tx < 0 || tx >= lv.w) return true; return SOLID.has(lv.g[ty][tx]); }
+// 화면 위(ty<0)는 비어 있지만, 보스 문(W) 칸은 하늘 끝까지 막혀 있어요(보스를 밟고 문을 뛰어넘지 못하게)
+function solid(tx, ty) { if (ty < 0) return tx >= 0 && tx < lv.w && lv.g[0][tx] === 'W'; if (ty >= ROWS) return false; if (tx < 0 || tx >= lv.w) return true; return SOLID.has(lv.g[ty][tx]); }
 function standable(tx, ty) { const c = tileAt(tx, ty); return SOLID.has(c) || c === '-'; }
 function overlap(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
 
@@ -999,7 +1098,7 @@ function moveBox(e, dt) {
     const ty = Math.floor(e.y / T), cx = Math.floor((e.x + e.w / 2) / T);
     let hit = -1;
     for (let tx = xa; tx <= xb; tx++) if (solid(tx, ty) && (hit < 0 || tx === cx)) hit = tx;
-    if (hit >= 0) { e.y = (ty + 1) * T; e.vy = 0; res.head = {tx: hit, ty}; }
+    if (hit >= 0) { e.y = (ty + 1) * T; e.vy = 0; if (ty >= 0) res.head = {tx: hit, ty}; }
   }
   return res;
 }
@@ -1160,30 +1259,33 @@ function updateBoom(e, dt) {
   for (const o of ents) {
     if (o.gone || o.dead) continue;
     if (['snail', 'bee', 'frog', 'crab', 'jelly', 'shark'].includes(o.t) && overlap(e, o)) { squash(o); sfx.stomp(); }
-    else if (o.t === 'boss' && o.active && !e.hitBoss && o.inv <= 0 && !(o.kind === 'snail' && o.st === 'hide') && overlap(e, o)) { e.hitBoss = true; bossHit(o); }
+    else if (o.t === 'boss' && o.active && !e.hitBoss && o.inv <= 0 && !(o.kind === 'snail' && o.st === 'hide') && !(o.kind === 'octo' && o.st !== 'weak') && overlap(e, o)) { e.hitBoss = true; bossHit(o); }
   }
 }
 
 // ---------- 보스 ----------
-function bossDefeatMinions() { for (const o of ents) if (o.minion && !o.dead) squash(o); for (const o of ents) if (o.t === 'wave') o.gone = true; }
+function bossDefeatMinions() { for (const o of ents) if (o.minion && !o.dead) squash(o); for (const o of ents) if (o.t === 'wave' || o.t === 'tent' || o.t === 'ink') o.gone = true; }
 function openGate(col, msg) {
   for (let r = 0; r < ROWS; r++) if (lv.g[r][col] === 'W') { lv.g[r][col] = '.'; sparkle(col * T + 16, r * T + 16, '#ffd23f', 4); }
   if (msg) toast(msg, 2.4);
 }
 function bossLost(b) {
   b.losses++;
-  b.x = b.sx; b.y = b.kind === 'bee' ? 3 * T : 10 * T - b.h; b.vx = b.vy = 0; b.st = 'idle'; b.tm = 0; b.active = false; b.inv = 0;
+  b.x = b.sx; b.y = bossHome(b.kind, b.h); b.vx = b.vy = 0; b.st = 'idle'; b.tm = 0; b.active = false; b.inv = 0; b.cyc = 0;
   bossDefeatMinions();
-  if (D().bypass && b.losses >= D().bypass && !b.bypass) { b.bypass = true; openGate(b.gate, '문이 열렸어요! 그냥 지나가도 돼요 (비밀의 방은 이겨야 열려요)'); sfx.check(); }
+  // 대왕 문어는 어떤 난이도에서도 그냥 지나갈 수 없어요(남은 체력은 그대로)
+  if (D().bypass && b.kind !== 'octo' && b.losses >= D().bypass && !b.bypass) { b.bypass = true; openGate(b.gate, '문이 열렸어요! 그냥 지나가도 돼요 (비밀의 방은 이겨야 열려요)'); sfx.check(); }
   else toast(`${b.name}에게 졌어요. 다시 해 봐요!`, 1.8);
 }
 function bossHit(b) {
   b.hp--; b.inv = 1; sfx.bossHit(); sparkle(b.x + b.w / 2, b.y + 6, '#ffffff', 12);
   if (b.kind === 'snail') { b.st = 'hide'; b.tm = 0; b.vx = 0; }
   if (b.kind === 'bee' && b.st === 'rest') { b.st = 'rise'; b.tm = 0; }
+  if (b.kind === 'octo') { b.st = 'rise'; b.tm = 0; }
   if (b.hp <= 0) {
     b.dead = true; b.sq = 0.9; stats.boss = true; sfx.clear(); bossDefeatMinions();
     for (let i = 0; i < 14; i++) parts.push({k:'poof', x:b.x + b.w / 2, y:b.y + b.h / 2, vx:Math.cos(i) * 140, vy:Math.sin(i) * 140 - 40, life:0.6, max:0.6});
+    if (b.kind === 'octo') { openGate(b.gate, '대왕 문어를 물리쳤어요! 깃발로 가요!'); sfx.door(); return; }
     openGate(b.gate);
     ents.push({t:'door', x:b.door * T, y:5 * T, w:T, h:2 * T, used:false});
     toast(`${b.name}를 물리쳤어요! 발판 위 비밀 문으로!`, 2.4);
@@ -1193,11 +1295,14 @@ function bossTouch(b) {
   const hb = {x: b.x + 4, y: b.y + 4, w: b.w - 8, h: b.h - 4};
   if (mode !== 'play' || !overlap(p, hb)) return;
   const shell = b.kind === 'snail' && b.st === 'hide';
-  const low = !(b.kind === 'bee' && b.y + b.h < 8 * T);
+  const low = b.kind === 'octo' ? b.st === 'weak' : !(b.kind === 'bee' && b.y + b.h < 8 * T);
+  // 대왕 문어는 '헉헉'일 때만 밟을 수 있어요. 머리 몸통이 아픈 건 내려올 때(down)뿐이고(그림자로 미리 보여요),
+  // 올라갈 때·떠 있을 때 닿으면 아무 일도 없어요(튀어 오르지 않아 머리를 타고 문을 못 넘어요)
+  if (b.kind === 'octo' && !low) { if (b.inv <= 0 && b.st === 'down' && p.pb > b.y + b.h * 0.5) hurt(); return; }
   if (p.fallV > 0 && p.pb <= b.y + b.h * 0.5) {
     p.vy = -560; p.boost = true; p.ground = false;
     if (b.inv <= 0 && !shell && low) bossHit(b); else sfx.bonk();
-  } else if (b.inv <= 0 && !shell) hurt();
+  } else if (b.inv <= 0 && !shell && !(b.kind === 'octo' && b.st === 'weak')) hurt();
 }
 function addMinion(b, kind) {
   const n = ents.filter(o => o.minion && !o.dead && !o.gone).length;
@@ -1213,12 +1318,13 @@ function updateBoss(b, dt) {
     if (b.kind === 'bee') b.y = 3 * T + Math.sin(time * 2) * 6;
     if (mode === 'play' && p.x > b.trig && p.x < b.gate * T) {
       b.active = true; b.st = 'start'; b.tm = 0; sfx.boss();
-      toast(`${b.name} 등장! ` + {snail: '머리를 밟아요', bee: '내려왔을 때 밟아요', frog: '착지하면 밟아요'}[b.kind], 2);
+      toast(`${b.name} 등장! ` + {snail: '머리를 밟아요', bee: '내려왔을 때 밟아요', frog: '착지하면 밟아요', octo: '촉수를 피하고, 머리가 내려오면 밟아요'}[b.kind], 2.4);
     }
     return;
   }
   b.inv = Math.max(0, b.inv - dt); b.tm += dt; b.minT += dt;
   const pc = p.x + p.w / 2, bc = b.x + b.w / 2, dir = pc < bc ? -1 : 1;
+  if (b.kind === 'octo') { updateOcto(b, dt, pc, bc, dir); b.x = Math.max(b.ax0, Math.min(b.ax1 - b.w, b.x)); bossTouch(b); return; }
   if (b.kind === 'snail') {
     const sp = 55 * b.bf * (1 + (b.max - b.hp) * 0.15);
     if (b.st === 'start') { b.st = 'walk'; b.face = dir; b.tm = 0; }
@@ -1268,6 +1374,40 @@ function frogJump(b, pc) {
   b.hops++; b.st = 'jump'; b.tm = 0;
   const dir = pc < b.x + b.w / 2 ? -1 : 1, dist = Math.max(48, Math.min(240, Math.abs(pc - b.x - b.w / 2)));
   b.face = dir; b.vy = b.hops > 1 ? -480 : -640; b.vx = dir * Math.min(280 * b.bf, dist / 0.7); b.ground = false;
+}
+
+// 대왕 문어: 위에 떠서 따라옴 → (촉수 | 먹물) → 머리가 내려와 '헉헉'(밟을 수 있음) → 다시 올라감. 촉수와 먹물을 번갈아 써요.
+function updateOcto(b, dt, pc, bc, dir) {
+  const gy = 10 * T, top = 2 * T, low = gy - 8 - b.h;
+  if (b.st === 'start') { b.st = 'hover'; b.tm = 0; }
+  // 공격하는 동안에도 머리는 콩콩이 위로 천천히(110, 콩콩이 190보다 느려요) 따라와요 → 내려오면 늘 가까이 있어서 밟으러 갈 수 있어요
+  if (b.st === 'tAtk' || b.st === 'iAfter') { b.x += Math.max(-110 * dt, Math.min(110 * dt, pc - bc)); b.face = dir; }
+  // 먹물 예고('!') 동안엔 뒤로 물러나요 → 먹물은 머리 옆에서 나와서 점프할 틈이 있어요
+  if (b.st === 'iWarn') { b.x -= dir * 110 * dt; b.face = dir; }
+  if (b.st === 'hover') {
+    b.y += (top - b.y) * Math.min(1, dt * 3);
+    b.x += Math.max(-70 * dt, Math.min(70 * dt, pc - bc)); b.face = dir;
+    if (b.tm > (b.weak < 1.2 ? 0.7 : 1.0)) {
+      b.tm = 0;
+      if (b.cyc++ % 2 === 0) { b.st = 'tAtk'; octoTentacles(b, pc); } else b.st = 'iWarn';
+    }
+  } else if (b.st === 'tAtk') { if (b.tm > b.warnT + 0.85) { b.st = 'down'; b.tm = 0; } }
+  else if (b.st === 'iWarn') {
+    if (b.tm > b.warnT) {
+      ents.push({t:'ink', x:bc + dir * b.w / 2 - 10, y:gy - 20, w:20, h:20, vx:dir * b.inkSp, x0:b.ax0, x1:b.ax1});
+      sfx.throw(); b.st = 'iAfter'; b.tm = 0;
+    }
+  } else if (b.st === 'iAfter') { if (b.tm > 0.5) { b.st = 'down'; b.tm = 0; } }
+  else if (b.st === 'down') { b.y += 320 * dt; if (b.y >= low) { b.y = low; b.st = 'weak'; b.tm = 0; sfx.bonk(); } }
+  else if (b.st === 'weak') { b.y = low; if (b.tm > b.weak) { b.st = 'rise'; b.tm = 0; } }
+  else if (b.st === 'rise') { b.y -= 240 * dt; if (b.y <= top) { b.y = top; b.st = 'hover'; b.tm = 0; } }
+}
+// 촉수: 콩콩이가 있던 자리 + 5칸씩 떨어진 자리(체력 절반부터 3개). 촉수 사이엔 4칸이 비어요. 예고 자리는 움직이지 않아요.
+function octoTentacles(b, pc) {
+  const a0 = Math.ceil(b.ax0 / T) + 1, a1 = Math.floor(b.ax1 / T) - 2, c0 = Math.max(a0, Math.min(a1, Math.floor(pc / T)));
+  const n = b.hp <= b.max / 2 ? 3 : 2, cols = [];
+  for (const k of [0, 5, -5, 10, -10]) { const c = c0 + k; if (c >= a0 && c <= a1 && cols.length < n) cols.push(c); }
+  for (const c of cols) ents.push({t:'tent', x:c * T + 4, w:24, base:10 * T, y:10 * T, h:0, full:2.5 * T, st:'warn', tm:0, warn:b.warnT});
 }
 
 // ---------- 비밀의 방 ----------
@@ -1321,6 +1461,8 @@ function updateEnts(dt) {
         if (e.ground) {
           const fx = e.vx > 0 ? e.x + e.w + 1 : e.x - 1;
           if (!standable(Math.floor(fx / T), Math.floor((e.y + e.h + 2) / T))) e.vx = -e.vx;
+          // 가시 앞에서도 돌아서요(가시 사이 섬으로 걸어 들어오지 않게)
+          else if (ents.some(s => s.t === 'spike' && fx >= s.x && fx < s.x + s.w && Math.abs(s.y + s.h - e.y - e.h) < 8)) e.vx = -e.vx;
         }
         e.vy = Math.min(e.vy + GRAV * dt, MAXFALL);
         { const r = moveBox(e, dt); if (r.wall) e.vx = -r.wall * e.sp; e.ground = r.ground; }
@@ -1371,6 +1513,19 @@ function updateEnts(dt) {
       case 'boss': updateBoss(e, dt); break;
       case 'boom': updateBoom(e, dt); break;
       case 'wave':
+        e.x += e.vx * dt;
+        if (e.x < e.x0 || e.x + e.w > e.x1) e.gone = true;
+        else if (mode === 'play' && overlap(p, {x: e.x + 3, y: e.y + 3, w: e.w - 6, h: e.h - 3})) hurt();
+        break;
+      case 'tent':
+        e.tm += dt;
+        if (e.st === 'warn') { if (e.tm > e.warn) { e.st = 'up'; e.tm = 0; sfx.stomp(); } }
+        else if (e.st === 'up') { e.h = Math.min(e.full, e.h + e.full * dt / 0.12); if (e.tm > 0.6) { e.st = 'back'; e.tm = 0; } }
+        else { e.h -= e.full * dt / 0.2; if (e.h <= 0) e.gone = true; }
+        e.y = e.base - e.h;
+        if (e.h > 12 && mode === 'play' && overlap(p, {x: e.x + 3, y: e.y + 4, w: e.w - 6, h: e.h - 4})) hurt();
+        break;
+      case 'ink':
         e.x += e.vx * dt;
         if (e.x < e.x0 || e.x + e.w > e.x1) e.gone = true;
         else if (mode === 'play' && overlap(p, {x: e.x + 3, y: e.y + 3, w: e.w - 6, h: e.h - 3})) hurt();
@@ -1675,6 +1830,7 @@ function drawDoor(e, label, col) {
 function drawBoss(b) {
   const ink = '#3b2b1c', cx = b.x + b.w / 2, by = b.y + b.h, s = b.w / 26;
   if (b.dead) { ctx.globalAlpha = Math.max(0, b.sq); ctx.fillStyle = '#ffffff'; ell(cx, by - b.h / 2, b.w * 0.6 * (1.6 - b.sq), b.h * 0.5 * (1.6 - b.sq)); ctx.fill(); ctx.globalAlpha = 1; return; }
+  if (b.kind === 'octo') { drawOcto(b, cx, by); return; }
   if (b.kind === 'bee' && b.active && b.st !== 'rest') {
     const warn = b.st === 'warn' || b.st === 'dive';
     ctx.globalAlpha = warn ? 0.45 + 0.25 * Math.sin(time * 20) : 0.18; ctx.fillStyle = warn ? '#d8434f' : '#000000';
@@ -1709,6 +1865,47 @@ function drawBoss(b) {
     ctx.font = '20px Jua, "Malgun Gothic", sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = ink;
     const t = warnNow ? '!' : '헉헉', yy = b.y - 14 + Math.sin(time * 8) * 2;
     ctx.fillStyle = warnNow ? '#ff5a5a' : '#ffffff'; ctx.strokeText(t, cx, yy); ctx.fillText(t, cx, yy);
+  }
+}
+
+function drawOcto(b, cx, by) {
+  const ink = '#3b2b1c', weak = b.st === 'weak';
+  // 그림자: 내려올 자리(빨갛게 깜빡이면 곧 내려와요)
+  if (b.active && !weak) {
+    const warn = b.st === 'down' || b.st === 'tAtk' || b.st === 'iAfter';
+    ctx.globalAlpha = warn ? 0.4 + 0.25 * Math.sin(time * 20) : 0.18; ctx.fillStyle = warn ? '#d8434f' : '#000000';
+    ell(cx, 10 * T - 3, b.w * 0.5, 6); ctx.fill(); ctx.globalAlpha = 1;
+  }
+  ctx.save();
+  if (b.inv > 0 && Math.floor(b.inv * 12) % 2 === 0) ctx.globalAlpha = 0.35;
+  const ox = b.st === 'iWarn' ? Math.sin(time * 60) * 2.5 : 0, hy = b.y + 26;
+  // 다리 6개(헉헉일 땐 축 늘어져요)
+  ctx.strokeStyle = '#a8326a'; ctx.lineCap = 'round';
+  for (let i = 0; i < 6; i++) {
+    const lx = cx + ox - 30 + i * 12, sw = weak ? 2 : Math.sin(time * 4 + i) * 7;
+    ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(lx, hy + 14);
+    ctx.quadraticCurveTo(lx + sw, hy + 30, lx + sw * 1.6 + (i < 3 ? -6 : 6), weak ? by + 2 : hy + 44); ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+  // 머리
+  ctx.fillStyle = '#e8579a'; ctx.strokeStyle = ink; ctx.lineWidth = 2.5;
+  ell(cx + ox, hy, b.w / 2, 28); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#ff9cc6'; for (const [dx, dy, r] of [[-20, -10, 5], [14, -14, 4], [22, 2, 3.5], [-6, -18, 3]]) { ell(cx + ox + dx, hy + dy, r, r); ctx.fill(); }
+  // 눈과 입
+  const f = b.face || -1, ey = hy + 4;
+  ctx.fillStyle = '#ffffff'; ell(cx + ox - 12 + f * 3, ey, 8, 9); ctx.fill(); ctx.stroke(); ell(cx + ox + 12 + f * 3, ey, 8, 9); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = ink;
+  if (weak) { ctx.lineWidth = 2; for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(cx + ox + s * 12 - 5 + f * 3, ey - 3); ctx.lineTo(cx + ox + s * 12 + 5 + f * 3, ey + 3); ctx.moveTo(cx + ox + s * 12 + 5 + f * 3, ey - 3); ctx.lineTo(cx + ox + s * 12 - 5 + f * 3, ey + 3); ctx.stroke(); } }
+  else { ell(cx + ox - 12 + f * 6, ey + 1, 3.5, 4.5); ctx.fill(); ell(cx + ox + 12 + f * 6, ey + 1, 3.5, 4.5); ctx.fill(); }
+  ctx.fillStyle = '#a8326a'; ell(cx + ox + f * 4, hy + 18, b.st === 'iWarn' ? 7 : 4, b.st === 'iWarn' ? 6 : 3); ctx.fill();
+  // 왕관
+  ctx.fillStyle = '#ffd23f'; ctx.strokeStyle = ink; ctx.lineWidth = 1.5; const ty = hy - 26;
+  ctx.beginPath(); ctx.moveTo(cx + ox - 14, ty); ctx.lineTo(cx + ox - 14, ty - 12); ctx.lineTo(cx + ox - 7, ty - 5); ctx.lineTo(cx + ox, ty - 14); ctx.lineTo(cx + ox + 7, ty - 5); ctx.lineTo(cx + ox + 14, ty - 12); ctx.lineTo(cx + ox + 14, ty); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.restore();
+  if (b.st === 'iWarn' || weak) {
+    ctx.font = '20px Jua, "Malgun Gothic", sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = ink;
+    const t = weak ? '헉헉' : '!', yy = b.y - 18 + Math.sin(time * 8) * 2;
+    ctx.fillStyle = weak ? '#ffffff' : '#ff5a5a'; ctx.strokeText(t, cx, yy); ctx.fillText(t, cx, yy);
   }
 }
 
@@ -1911,6 +2108,25 @@ function drawEnt(e) {
       ctx.beginPath(); ctx.moveTo(e.x, e.y + e.h); ctx.quadraticCurveTo(e.x + e.w / 2, e.y - 6, e.x + e.w, e.y + e.h); ctx.closePath(); ctx.fill(); ctx.stroke();
       break;
     }
+    case 'tent': {
+      const cx = e.x + e.w / 2;
+      if (e.st === 'warn') {
+        // 예고: 바닥에서 거품과 빨간 표시가 깜빡여요
+        ctx.globalAlpha = 0.45 + 0.35 * Math.sin(time * 18); ctx.fillStyle = '#ff5a5a'; ell(cx, e.base - 3, 18, 6); ctx.fill(); ctx.globalAlpha = 1;
+        ctx.fillStyle = 'rgba(255,255,255,.8)'; for (let i = 0; i < 3; i++) { ell(cx - 8 + i * 8, e.base - 8 - ((time * 40 + i * 9) % 18), 2.5, 2.5); ctx.fill(); }
+        break;
+      }
+      ctx.fillStyle = '#e8579a'; ctx.strokeStyle = '#3b2b1c'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(e.x, e.base); ctx.quadraticCurveTo(e.x - 2, e.y + e.h * 0.4, cx, e.y); ctx.quadraticCurveTo(e.x + e.w + 2, e.y + e.h * 0.4, e.x + e.w, e.base); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#ffc2dc'; for (let yy = e.y + 14; yy < e.base - 6; yy += 14) { ell(cx + 4, yy, 3, 3); ctx.fill(); }
+      break;
+    }
+    case 'ink': {
+      const cx = e.x + 10, cy = e.y + 11;
+      ctx.fillStyle = '#2a2140'; ell(cx, cy, 10, 9); ctx.fill(); ell(cx - Math.sign(e.vx) * 9, cy + 2, 6, 5); ctx.fill();
+      ctx.fillStyle = '#ffffff'; ell(cx + Math.sign(e.vx) * 3, cy - 2, 2.2, 2.2); ctx.fill();
+      break;
+    }
     case 'sprout': {
       const cx = e.x + 11, by = e.y + 22;
       ctx.save(); if (e.emerge > 0) { ctx.beginPath(); ctx.rect(e.x - 4, e.top - 10, 30, 32 + 10); ctx.clip(); }
@@ -2094,13 +2310,14 @@ function resumeGame() { if (portrait) return; mode = 'play'; showScreen(null); $
 function showClear() {
   mode = 'clear';
   $('#controls').hidden = true;
-  const last = idx === LEVELS.length - 1, home = idx === WORLD_LEN - 1;
-  $('#clearTitle').textContent = home ? '월드1 새싹 마을 성공!' : `${idx + 1}. ${lv.name} 성공!`;
+  const last = idx === LEVELS.length - 1, home = idx === WORLD_LEN - 1, sea = idx === 2 * WORLD_LEN - 1;
+  $('#clearTitle').textContent = home ? '월드1 새싹 마을 성공!' : sea ? '반짝 바다 성공!' : `${idx + 1}. ${lv.name} 성공!`;
   $('#clearStars').innerHTML = '★'.repeat(stats.stars) + `<span class="off">${'★'.repeat(3 - stats.stars)}</span>`;
   const extra = ` 걸린 시간 ${fmtTime(stats.time)}${stats.newBest ? ' (새 기록!)' : ''}` + (stats.boss ? ' · 보스 물리침 👑' : '');
   $('#clearInfo').textContent = (home
     ? `콩콩이가 무사히 집에 도착했어요! 사탕 ${stats.candy}개를 모았어요.` + (last ? '' : ' 반짝 바다가 열렸어요!')
-    : last ? `큰 별 ${stats.stars}개! 다음 바다 길은 곧 열려요.`
+    : sea ? `대왕 문어를 물리치고 반짝 바다를 지켰어요! 사탕 ${stats.candy}개를 모았어요 (${D().label}).`
+    : last ? `큰 별 ${stats.stars}개! 다음 길은 곧 열려요.`
     : `큰 별 ${stats.stars}개, 사탕 ${stats.candy}/${stats.total}개 (${D().label}).`) + extra;
   $('#bNext').hidden = last;
   $('#bNext').textContent = home ? '반짝 바다로' : '다음 스테이지';

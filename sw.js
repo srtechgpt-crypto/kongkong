@@ -1,6 +1,6 @@
 "use strict";
 
-const VERSION = "1685cc90a706";
+const VERSION = "afbde3ec8441";
 const FILES = {
   ".nojekyll": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
   "fonts/Jua.woff2": "81c487d37033de2dac312001ffdaa09c830d0cce557921665b6b5a5cb285c731",
@@ -8,7 +8,7 @@ const FILES = {
   "icons/icon-192.png": "3fd3433d0a4b75a0c11df0f7996ae6628e75a69771e6f66f80ebf7f263a8880f",
   "icons/icon-512.png": "913a52b00c3b180bc8f7580aecbd02e5e43a10b147e42ff6f634f355e46414ca",
   "icons/icon-maskable-512.png": "63cd6b60ee3ea4f3811a64e521ced02ee185c5f92baab8e87868e7c7d5919501",
-  "index.html": "157e8760adf68a4da36d6dc8fb75972976695e4331b1dc954afd860bfecb7d47",
+  "index.html": "c63f061221c94db8ca2c8a53b5ee61740a7c173c7f74822113e3067c2585e9b4",
   "manifest.webmanifest": "253f33518e90f0debd78160f8cfaa625595200d0f2c61c3daf8e068ee44e8df3"
 };
 const CACHE_NAME = "kongkong-" + VERSION;
