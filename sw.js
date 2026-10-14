@@ -1,14 +1,14 @@
 "use strict";
 
-const VERSION = "06b14d57df34";
+const VERSION = "e7d84de00fc3";
 const FILES = {
   ".nojekyll": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
   "fonts/Jua.woff2": "81c487d37033de2dac312001ffdaa09c830d0cce557921665b6b5a5cb285c731",
-  "fonts/OFL.txt": "44a7c6e4c5572392ae122d3b1d8c6ba6fd640a7797e675384585d947f2773e3c",
+  "fonts/OFL.txt": "b85cc79141e847ef9371701e0509cb77f0fc33cff3b2ea8044042288925ad791",
   "icons/icon-192.png": "3fd3433d0a4b75a0c11df0f7996ae6628e75a69771e6f66f80ebf7f263a8880f",
   "icons/icon-512.png": "913a52b00c3b180bc8f7580aecbd02e5e43a10b147e42ff6f634f355e46414ca",
   "icons/icon-maskable-512.png": "63cd6b60ee3ea4f3811a64e521ced02ee185c5f92baab8e87868e7c7d5919501",
-  "index.html": "6d56200a44e2f9a2d72556efb24f7422fd4d7a3c56413ca30fdd99132c8ccab1",
+  "index.html": "9f435ac6d6b7384d261ba16b0affd260adcd476aba2be21606d32102ded29b3e",
   "manifest.webmanifest": "253f33518e90f0debd78160f8cfaa625595200d0f2c61c3daf8e068ee44e8df3"
 };
 const CACHE_NAME = "kongkong-" + VERSION;
